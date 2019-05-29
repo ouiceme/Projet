@@ -1,35 +1,18 @@
 env:
-
   global:
-
   - COMPONENT=front
-
   - TOOLS_DIR=$HOME/tools
-
   - PATH=$TOOLS_DIR/bin:$PATH
-
-
 
 language: bash
 
-
-
 sudo: required
 
-
-
 before_deploy:
-
 - sudo pip install 'requests[security]' awscli
-
 - $TRAVIS_BUILD_DIR/tools/install_packages.sh $TOOLS_DIR
 
-
-
 deploy:
-
   - provider: script
-
     skip_cleanup: true
-
     script: cd $TRAVIS_BUILD_DIR/tools && ./deploy.sh
