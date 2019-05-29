@@ -22,7 +22,7 @@ data "terraform_remote_state" "mainvpc" {
   }
 }
 
-data "aws_ami" "ubuntu" {
+/* data "aws_ami" "ubuntu" {
   most_recent = true
 
   filter {
@@ -31,7 +31,15 @@ data "aws_ami" "ubuntu" {
   }
 
   owners = ["099720109477"] # Canonical id developper }
-}
+} */
+data "aws_ami" "myami" {  
+  most_recent = true
+  filter {    
+    name   = "name"    
+    values = ["${var.ami_name}"] # name AMI   
+    }  
+    owners = ["self"] 
+  }
 
 data "template_file" "YYYY" {
   template = "${file("${path.module}/userdata.tpl")}"
@@ -89,7 +97,7 @@ resource "aws_key_pair" "mykey" {
 
 resource "aws_launch_configuration" "myconfig" {
   name_prefix     = "YYYY"
-  image_id        = "${data.aws_ami.ubuntu.id}"
+  image_id        = "${data.aws_ami.myami.id}"
   instance_type   = "t2.micro"
   security_groups = ["${aws_security_group.allow_all.id}"]
   //key_name        = "${aws_key_pair.mykey.key_name}"
