@@ -10,6 +10,8 @@ sudo: required
 
 before_deploy:
 - sudo pip install 'requests[security]' awscli
+- chmod +x $TRAVIS_BUILD_DIR/tools/install_packages.sh
+- chmod +x $TRAVIS_BUILD_DIR/tools/deploy.sh
 - $TRAVIS_BUILD_DIR/tools/install_packages.sh $TOOLS_DIR
 
 deploy:
