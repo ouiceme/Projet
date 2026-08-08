@@ -8,13 +8,25 @@ language: bash
 
 sudo: required
 
-before_deploy:
-- sudo pip install 'requests[security]' awscli
-- chmod +x $TRAVIS_BUILD_DIR/tools/install_packages.sh
-- chmod +x $TRAVIS_BUILD_DIR/tools/deploy.sh
-- $TRAVIS_BUILD_DIR/tools/install_packages.sh $TOOLS_DIR
+branches:
+  only:
+    - master
+
+install:
+  - sudo pip install 'requests[security]' awscli
+  - chmod +x $TRAVIS_BUILD_DIR/tools/install_packages.sh
+  - chmod +x $TRAVIS_BUILD_DIR/tools/deploy.sh
+  - $TRAVIS_BUILD_DIR/tools/install_packages.sh $TOOLS_DIR
+
+script:
+  - terraform fmt -check $TRAVIS_BUILD_DIR
+  - terraform fmt -check $TRAVIS_BUILD_DIR/webapp
+  - cd $TRAVIS_BUILD_DIR && terraform init -backend=false && terraform validate
+  - cd $TRAVIS_BUILD_DIR/webapp && terraform init -backend=false && terraform validate
 
 deploy:
   - provider: script
     skip_cleanup: true
+    on:
+      branch: master
     script: cd $TRAVIS_BUILD_DIR/tools && ./deploy.sh
