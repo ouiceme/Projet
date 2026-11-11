@@ -1,0 +1,26 @@
+{
+  "name": "cartoon-shorts",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "remotion studio",
+    "render": "remotion render"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^8.17.0",
+    "@react-three/postprocessing": "^3.2.2",
+    "@remotion/bundler": "4.0.543",
+    "@remotion/cli": "4.0.543",
+    "@remotion/renderer": "4.0.543",
+    "@remotion/three": "4.0.543",
+    "postprocessing": "^6.39.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.543",
+    "three": "^0.168.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/three": "^0.168.0",
+    "typescript": "^5.5.0"
+  }
+}
