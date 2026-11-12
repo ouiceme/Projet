@@ -30,6 +30,25 @@
 - **Rythme** : voix `fr-FR-HenriNeural` à `--rate=+5%` (environ 2,7 mots par seconde), accroche dans les 3 premières secondes,
   60 à 75 s par vidéo. Bruitages synchronisés aux actions.
 
+## Référence visuelle cible (prioritaire)
+Regarder d'abord les cinq images de `animated-short/refs/` : c'est le niveau à atteindre.
+Elles viennent d'une vidéo faite avec le même skill. Ce qui fait ce rendu :
+- **Personnages** : grosse tête ronde, contour prune épais, casquette à visière, yeux en points ou grands ronds,
+  bouche expressive, torse en haricot à boutons avec léger dégradé, membres en traits fins, mains en points,
+  petites chaussures. Une couleur de tenue par personnage. C'est exactement ce que dessine `toon.ts`.
+- **Monde** : vraie géométrie 3D avec contour encré sur toutes les arêtes (`ink.ts`), couleurs saturées,
+  textures peintes (haie, volets, caisse rayée, carrelage), ombres portées au sol.
+- **Image** : arrière-plan flouté par la profondeur de champ (`lensblur.ts`), étalonnage chaud et vignette (`grade.ts`),
+  personnages posés au sol dans le tiers bas, caméra basse, échelles cohérentes.
+
+**Conséquence** : ne plus écrire de scène simplifiée à la main. Repartir du gabarit complet du skill
+(`~/.claude/skills/cartoon-3d-short/templates/bridge/` : `Bridge.tsx`, `world.ts`, `build.ts`, `cast.ts`, `toon.ts`,
+`ink.ts`, `lensblur.ts`, `grade.ts`, `paint.ts`, `cardshade.ts`, `shade.ts`, `lights.ts`) et lire `SKILL.md`.
+Étape 0 de la soirée : faire rendre un still du gabarit du pont tel quel. Les modèles Kenney sont optionnels
+(le chargeur ignore ceux qui manquent) ; les remplacer par de la géométrie encrée. Ensuite seulement adapter
+l'histoire, le monde et la distribution pour chaque vidéo. Si le skill a disparu : le recloner depuis
+`mromidev/claude-animated-shorts`.
+
 ## Dépôts GitHub sur lesquels s'appuyer
 - `mromidev/claude-animated-shorts` (skill déjà installé dans `~/.claude/skills/cartoon-3d-short/`) :
   `toon.ts` pour les personnages, `ink.ts` pour le contour encré, `paint.ts` pour les textures peintes,
