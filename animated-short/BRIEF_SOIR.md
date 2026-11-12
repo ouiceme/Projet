@@ -49,6 +49,18 @@ Elles viennent d'une vidéo faite avec le même skill. Ce qui fait ce rendu :
 l'histoire, le monde et la distribution pour chaque vidéo. Si le skill a disparu : le recloner depuis
 `mromidev/claude-animated-shorts`.
 
+## Objectif : dépasser la référence
+Les images de référence sont le plancher, pas la cible. Leurs faiblesses à ne pas reproduire :
+fond noir vide (ref4), grandes surfaces unies sans détail (ref3), décors peu peuplés.
+Leviers pour faire mieux :
+- Chaque plan a un décor complet et habité (accessoires, second plan animé, nuages, reflets), aucune zone vide.
+- Jeu des personnages : expressions qui changent avec la narration, regards, anticipation avant chaque action.
+- Pédagogie visuelle : un schéma animé clair par idée clé (niveau de la vue en coupe tube-tenon de LEGO v3).
+- Son : bruitages synchronisés et musique discrète sous la voix (`templates/audio/` du skill), voix toujours dominante.
+- Reflets brillants sur plastique et métal, que la référence n'a pas.
+- Contrôle qualité avant le rendu complet : planche comparant 6 stills aux images de `refs/`.
+  Tant qu'un still est moins bon que la référence, corriger ; ne lancer le rendu complet qu'ensuite.
+
 ## Dépôts GitHub sur lesquels s'appuyer
 - `mromidev/claude-animated-shorts` (skill déjà installé dans `~/.claude/skills/cartoon-3d-short/`) :
   `toon.ts` pour les personnages, `ink.ts` pour le contour encré, `paint.ts` pour les textures peintes,
