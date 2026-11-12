@@ -47,46 +47,65 @@ type V3 = [number, number, number];
 type Cam = { pos: V3; look: V3; fov: number };
 
 const camForShot = (tau: number): Cam => {
+  // 12 cinematic shots mapped to story time
   if (tau < 4.3) {
+    // Shot 1: hook wide, street level, tank in background
     const t = cl(tau / 4.3);
     return { pos: [-3 - t * 0.4, 1.6 - t * 0.1, -18 + t * 2], look: [0, 1.4, 22], fov: 44 };
   } else if (tau < 10.3) {
+    // Shot 2: aerial setting — high angle over the North End
     const t = cl((tau - 4.3) / 6);
     const y = 28 - t * 6;
     return { pos: [4, y, -15 - t * 5], look: [3, 1.5, 22], fov: 44 };
   } else if (tau < 14.3) {
+    // Shot 3: tank CU — close on tank surface
     const t = cl((tau - 10.3) / 4);
     return { pos: [4 - 13.7 + 1.5, 9 + t * 0.5, 22 - 3], look: [4 - 13.7 + 0.3, 9, 22], fov: 36 };
   } else if (tau < 16.0) {
+    // Shot 4: rivet pops
+    const t = cl((tau - 14.3) / 1.7);
     const jitter = tau > 15.0 ? Math.sin(tau * 50) * 0.015 : 0;
     return { pos: [4 - 13.7 + 0.8, 5.5, 22 - 1.2 + jitter], look: [4 - 13.7 + 0.1, 5.5, 22], fov: 32 };
   } else if (tau < 20.5) {
+    // Shot 5: burst + wave wide — dramatic pull back
     const t = cl((tau - 16.0) / 4.5);
     return { pos: [14 - t * 4, 5 - t, -25 - t * 5], look: [0, 1.8, 0], fov: 50 };
   } else if (tau < 24.0) {
+    // Shot 6: ground level, wave incoming
+    const t = cl((tau - 20.5) / 3.5);
     const shake = tau < 23.0 ? Math.sin(tau * 40) * 0.03 * cl((23 - tau) / 2) : 0;
     return { pos: [3.5 + shake, 1.5, -8], look: [-1, 0.8 + shake, 0], fov: 42 };
   } else if (tau < 27.5) {
+    // Shot 7: destruction — elevated railway
     const t = cl((tau - 24.0) / 3.5);
     return { pos: [6, 7 - t * 0.5, -15], look: [0, 5.5, 0], fov: 44 };
   } else if (tau < 31.5) {
+    // Shot 8: harbour aftermath
     return { pos: [-8, 3.5, -40], look: [0, 0.5, -60], fov: 42 };
   } else if (tau < 44.0) {
+    // Shot 9+10: golden explanation + water balloon analogy
     const t = cl((tau - 31.5) / 12.5);
-    return { pos: [4, 18 - t * 8, -30], look: [3, 1, 22], fov: 40 };
+    const y = 18 - t * 8;
+    return { pos: [4, y, -30], look: [3, 1, 22], fov: 40 };
   } else if (tau < 54.0) {
+    // Shot 11: consequence — building sign
     const t = cl((tau - 44.0) / 10);
     return { pos: [-4 + t * 0.5, 1.9 - t * 0.1, -14 + t * 2], look: [0, 1.6, -6], fov: 42 };
   } else {
+    // Shot 12: callback — modern tourist
     const t = cl((tau - 54.0) / 12.78);
     return { pos: [5 - t * 4, 2.8 - t, -18 + t * 8], look: [0, 1.5 + t * 0.2, -4], fov: 44 - t * 6 };
   }
 };
 
+// ---- scene components ----------------
+
+/** Sky gradient plane */
 const Sky: React.FC<{ tau: number }> = ({ tau }) => {
   const isGolden = tau > 31.5 && tau < 54.0;
-  const skyCol = isGolden ? "#ffb347" : "#87ceeb";
-  const horizCol = isGolden ? "#ff6b35" : "#c8e6f5";
+  const isNight = tau > 54.0;
+  const skyCol = isGolden ? "#ffb347" : (isNight ? "#2c3e70" : "#87ceeb");
+  const horizCol = isGolden ? "#ff6b35" : (isNight ? "#1a2a5e" : "#c8e6f5");
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(1, 1, 1, 8);
     const pos = g.attributes.position;
@@ -95,7 +114,8 @@ const Sky: React.FC<{ tau: number }> = ({ tau }) => {
     const horiz = new THREE.Color(horizCol);
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
-      const c = sky.clone().lerp(horiz, 1 - (y + 0.5));
+      const t = (y + 0.5);
+      const c = sky.clone().lerp(horiz, 1 - t);
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
@@ -109,12 +129,14 @@ const Sky: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+/** Cobblestone street */
 const Street: React.FC = () => (
   <>
     <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
       <planeGeometry args={[80, 100]} />
       <meshLambertMaterial color="#7a7268" />
     </mesh>
+    {/* Harbour water (back) */}
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, -65]}>
       <planeGeometry args={[80, 60]} />
       <meshLambertMaterial color="#1a4a6e" />
@@ -122,7 +144,11 @@ const Street: React.FC = () => (
   </>
 );
 
-const Building: React.FC<{ x: number; z: number; w: number; d: number; h: number; color?: string }> = ({ x, z, w, d, h, color = "#8b6b52" }) => {
+/** A single 1919 brick warehouse building */
+const Building: React.FC<{
+  x: number; z: number; w: number; d: number; h: number;
+  color?: string; windows?: boolean;
+}> = ({ x, z, w, d, h, color = "#8b6b52", windows = true }) => {
   const brickColor = useMemo(() => new THREE.Color(color), [color]);
   return (
     <group position={[x, h / 2, z]}>
@@ -130,7 +156,8 @@ const Building: React.FC<{ x: number; z: number; w: number; d: number; h: number
         <boxGeometry args={[w, h, d]} />
         <meshLambertMaterial color={brickColor} />
       </mesh>
-      {Array.from({ length: Math.floor(h / 2.5) }, (_, row) =>
+      {/* Window rows */}
+      {windows && Array.from({ length: Math.floor(h / 2.5) }, (_, row) =>
         Array.from({ length: Math.floor(w / 2.5) }, (_, col) => {
           const wx = -w / 2 + 1.2 + col * 2.5;
           const wy = -h / 2 + 1.2 + row * 2.5;
@@ -147,27 +174,34 @@ const Building: React.FC<{ x: number; z: number; w: number; d: number; h: number
   );
 };
 
+/** The massive molasses tank */
 const MolassesTank: React.FC<{ tau: number }> = ({ tau }) => {
   const burst = tankBurst(tau);
   const r = 13.7, h = 15.2;
+  const tankColor = burst > 0.5 ? "#4a3020" : "#6b7280";
+  // Tank sag: as it bursts, the near side collapses
   const scaleX = 1 - burst * 0.15;
   const scaleZ = 1 + burst * 0.08;
   return (
     <group position={[4, h / 2, 22]}>
+      {/* Main cylinder */}
       <mesh castShadow scale={[scaleX, 1 - burst * 0.05, scaleZ]}>
         <cylinderGeometry args={[r, r, h, 32]} />
-        <meshLambertMaterial color={burst > 0.5 ? "#4a3020" : "#6b7280"} />
+        <meshLambertMaterial color={tankColor} />
       </mesh>
+      {/* Tank top */}
       <mesh position={[0, h / 2, 0]} scale={[scaleX, 1, scaleZ]}>
         <cylinderGeometry args={[r * 0.98, r, 0.3, 32]} />
         <meshLambertMaterial color="#555e6b" />
       </mesh>
+      {/* Rivets (rings around tank) */}
       {[0.3, 0.5, 0.7].map((v, i) => (
         <mesh key={i} position={[0, -h / 2 + h * v, 0]} scale={[scaleX, 1, scaleZ]}>
           <torusGeometry args={[r + 0.12, 0.08, 6, 32]} />
           <meshLambertMaterial color="#444" />
         </mesh>
       ))}
+      {/* Burst crack — appears as burst increases */}
       {burst > 0.1 && (
         <mesh position={[-r * scaleX + 0.1, -h * 0.1, 0]} rotation={[0, 0, 0.3]}>
           <boxGeometry args={[0.3, h * 0.4 * burst, 0.3]} />
@@ -178,18 +212,21 @@ const MolassesTank: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+/** The molasses wave — a deformed plane that sweeps down the street */
 const MolassesWave: React.FC<{ tau: number }> = ({ tau }) => {
   const front = waveFront(tau);
   const height = waveH(tau);
   if (height < 0.05) return null;
   const depth = 12 + (tau - BURST_TAU) * 4;
   const waveGeo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(70, Math.max(1, depth), 20, 20);
+    const segs = 20;
+    const g = new THREE.PlaneGeometry(70, Math.max(1, depth), segs, segs);
     const pos = g.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const z = pos.getZ(i);
       const x = pos.getX(i);
-      const relZ = (z + depth / 2) / depth;
+      const relZ = (z + depth / 2) / depth;  // 0 = front face, 1 = back
+      // Wave front face is tall, back tapers to 0
       const h = height * Math.max(0, Math.min(1, 1 - relZ)) * Math.sqrt(1 - Math.min(1, relZ));
       const bulge = height * 0.3 * Math.exp(-relZ * 3) * (1 - Math.abs(x / 35));
       pos.setY(i, Math.max(0, h + bulge));
@@ -198,12 +235,14 @@ const MolassesWave: React.FC<{ tau: number }> = ({ tau }) => {
     g.computeVertexNormals();
     return g;
   }, [depth, height]);
+
   return (
     <group position={[0, 0, front + depth / 2]}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+      <mesh receiveShadow castShadow rotation={[Math.PI / 2, 0, 0]}>
         <primitive object={waveGeo} />
         <meshLambertMaterial color="#8B6914" transparent opacity={0.92} side={THREE.DoubleSide} />
       </mesh>
+      {/* Foam / froth cap on the leading edge */}
       <mesh position={[0, height * 0.6, -depth / 2 + 0.5]}>
         <boxGeometry args={[70, height * 0.4, 0.4]} />
         <meshBasicMaterial color="#c8a850" transparent opacity={0.7} />
@@ -212,26 +251,42 @@ const MolassesWave: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+/** Elevated railway structure */
 const ElevatedRailway: React.FC<{ tau: number }> = ({ tau }) => {
+  // Collapses during destruction shot (tau ~26-28)
   const collapse = cl((tau - 26.5) / 2.5);
   const tilt = collapse * 0.6;
   const drop = collapse * 2;
   return (
     <group rotation={[0, 0, -tilt]} position={[7, 0, 0]}>
+      {/* Support columns */}
       {[-15, -5, 5, 15].map((z, i) => (
         <mesh key={i} position={[0, 2.9 - drop * 0.5, z]}>
           <boxGeometry args={[0.4, 5.8 + drop, 0.4]} />
           <meshLambertMaterial color="#2a2a2a" />
         </mesh>
       ))}
+      {/* Deck beams */}
       <mesh position={[0, 5.8 - drop, 0]}>
         <boxGeometry args={[0.6, 0.4, 36]} />
         <meshLambertMaterial color="#1a1a1a" />
       </mesh>
+      <mesh position={[1.0, 5.8 - drop, 0]}>
+        <boxGeometry args={[0.4, 0.4, 36]} />
+        <meshLambertMaterial color="#1a1a1a" />
+      </mesh>
+      {/* Rails */}
+      {[-0.5, 0.5].map((x, i) => (
+        <mesh key={i} position={[x, 6.1 - drop, 0]}>
+          <boxGeometry args={[0.08, 0.08, 36]} />
+          <meshLambertMaterial color="#555" />
+        </mesh>
+      ))}
     </group>
   );
 };
 
+/** Lamp post */
 const LampPost: React.FC<{ x: number; z: number }> = ({ x, z }) => (
   <group position={[x, 0, z]}>
     <mesh position={[0, 2.5, 0]}>
@@ -242,50 +297,94 @@ const LampPost: React.FC<{ x: number; z: number }> = ({ x, z }) => (
       <sphereGeometry args={[0.2, 8, 6]} />
       <meshBasicMaterial color="#fffcdc" />
     </mesh>
+    <mesh position={[0.4, 4.9, 0]}>
+      <cylinderGeometry args={[0.0, 0.3, 0.3, 6]} />
+      <meshLambertMaterial color="#222" />
+    </mesh>
   </group>
 );
 
-const Figure: React.FC<{ x: number; z: number; tau: number; outfit: "worker" | "woman" | "horse"; fleeing?: boolean; speed?: number }> = ({ x, z, tau, outfit, fleeing, speed = 1 }) => {
+/** A cartoon figure as a 2D card in 3D space */
+const Figure: React.FC<{
+  x: number; z: number; tau: number;
+  outfit: "worker" | "woman" | "horse"; fleeing?: boolean; speed?: number;
+}> = ({ x, z, tau, outfit, fleeing, speed = 1 }) => {
   const cv = useMemo(() => {
     const c = document.createElement("canvas");
     c.width = 128; c.height = 256;
     const g = c.getContext("2d")!;
+    // Draw a simple 2D cartoon character
     if (outfit === "horse") {
+      // Horse silhouette
       g.fillStyle = "#8b6240";
+      // Body
       g.beginPath(); g.ellipse(64, 160, 50, 28, 0, 0, Math.PI * 2); g.fill();
+      // Head
       g.beginPath(); g.ellipse(100, 130, 22, 16, 0.5, 0, Math.PI * 2); g.fill();
+      // Legs
       g.fillRect(30, 180, 10, 50); g.fillRect(50, 180, 10, 50);
       g.fillRect(75, 180, 10, 50); g.fillRect(95, 180, 10, 50);
+      // Eye
       g.fillStyle = "#000"; g.beginPath(); g.arc(108, 125, 4, 0, Math.PI * 2); g.fill();
+      // Outline
       g.strokeStyle = "#1a0d05"; g.lineWidth = 3;
       g.beginPath(); g.ellipse(64, 160, 50, 28, 0, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.ellipse(100, 130, 22, 16, 0.5, 0, Math.PI * 2); g.stroke();
     } else if (outfit === "worker") {
-      g.fillStyle = "#ffe2c2";
+      // Worker silhouette
+      const skin = "#ffe2c2";
+      // Head
+      g.fillStyle = skin;
       g.beginPath(); g.arc(64, 48, 24, 0, Math.PI * 2); g.fill();
+      // Cap
       g.fillStyle = "#2a3a4a";
       g.beginPath(); g.ellipse(64, 36, 28, 10, 0, Math.PI, 0); g.fill();
       g.fillRect(36, 36, 56, 12);
+      // Body
       g.fillStyle = "#3a5a4a";
       g.beginPath(); g.roundRect(44, 72, 40, 70, 4); g.fill();
+      // Arms
       g.fillRect(24, 72, 20, 55); g.fillRect(84, 72, 20, 55);
+      // Pants
       g.fillStyle = "#2a3a2a";
       g.fillRect(44, 140, 16, 65); g.fillRect(68, 140, 16, 65);
+      // Boots
+      g.fillStyle = "#1a1a1a";
+      g.fillRect(42, 198, 20, 12); g.fillRect(66, 198, 20, 12);
+      // Outline
       g.strokeStyle = "#1a0d05"; g.lineWidth = 3;
       g.beginPath(); g.arc(64, 48, 24, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.roundRect(44, 72, 40, 70, 4); g.stroke();
     } else {
-      g.fillStyle = "#ffe2c2";
+      // Woman silhouette
+      const skin = "#ffe2c2";
+      g.fillStyle = skin;
       g.beginPath(); g.arc(64, 45, 22, 0, Math.PI * 2); g.fill();
+      // Hair / hat
       g.fillStyle = "#1a1a35";
       g.beginPath(); g.ellipse(64, 32, 26, 14, 0, 0, Math.PI * 2); g.fill();
+      // Dress
       g.fillStyle = "#8a3a4a";
       g.beginPath(); g.moveTo(44, 68); g.lineTo(84, 68); g.lineTo(96, 200); g.lineTo(32, 200); g.closePath(); g.fill();
+      // Outline
       g.strokeStyle = "#1a0d05"; g.lineWidth = 3;
       g.beginPath(); g.arc(64, 45, 22, 0, Math.PI * 2); g.stroke();
+      g.beginPath(); g.moveTo(44, 68); g.lineTo(84, 68); g.lineTo(96, 200); g.lineTo(32, 200); g.closePath(); g.stroke();
     }
     return c;
   }, [outfit]);
-  const tex = useMemo(() => { const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t; }, [cv]);
-  const posZ = fleeing && tau > BURST_TAU ? z - cl((tau - BURST_TAU) / 4) * speed * 8 : z;
+
+  const tex = useMemo(() => {
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, [cv]);
+
+  // Fleeing: move forward (toward -z) when wave is coming
+  const posZ = fleeing && tau > BURST_TAU
+    ? z - cl((tau - BURST_TAU) / 4) * speed * 8
+    : z;
+
   const h = outfit === "horse" ? 1.5 : 2.0;
   return (
     <mesh position={[x, h / 2, posZ]}>
@@ -295,6 +394,7 @@ const Figure: React.FC<{ x: number; z: number; tau: number; outfit: "worker" | "
   );
 };
 
+/** Molasses pool on the ground after wave passes */
 const MolassesPool: React.FC<{ tau: number }> = ({ tau }) => {
   if (tau < BURST_TAU + 2) return null;
   const spread = cl((tau - BURST_TAU - 2) / 8);
@@ -306,10 +406,30 @@ const MolassesPool: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+/** Molasses drips on the elevated railway */
+const MolassesDrips: React.FC<{ tau: number }> = ({ tau }) => {
+  if (tau < BURST_TAU + 3 || tau > 40) return null;
+  return (
+    <>
+      {[-12, -6, 0, 6, 12].map((z, i) => {
+        const h = 1 + Math.sin(i * 2.3) * 0.5;
+        return (
+          <mesh key={i} position={[7, 5.8 - h / 2, z]}>
+            <capsuleGeometry args={[0.15, h, 4, 6]} />
+            <meshLambertMaterial color="#7a4a10" transparent opacity={0.8} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+};
+
+/** Water balloon for explanation shot */
 const WaterBalloon: React.FC<{ tau: number }> = ({ tau }) => {
   if (tau < 36 || tau > 50) return null;
   const appear = cl((tau - 36) / 1.5);
-  const swell = 1 + cl((tau - 38) / 6) * 0.18;
+  const sun = cl((tau - 38) / 6);
+  const swell = 1 + sun * 0.18;
   const pop = cl((tau - 46) / 1);
   return (
     <group position={[2, 2, -6]} scale={appear}>
@@ -319,16 +439,22 @@ const WaterBalloon: React.FC<{ tau: number }> = ({ tau }) => {
           <meshLambertMaterial color="#5ba3e8" transparent opacity={0.75} />
         </mesh>
       )}
-      {pop > 0.5 && [-1, 0, 1].map((dx, i) => (
-        <mesh key={i} position={[dx * 0.8, (i - 1) * 0.5, 0]}>
-          <sphereGeometry args={[0.15, 8, 6]} />
-          <meshBasicMaterial color="#5ba3e8" transparent opacity={0.6} />
-        </mesh>
-      ))}
+      {pop > 0.5 && (
+        <>
+          {/* Burst splash */}
+          {[-1, 0, 1].map((dx, i) => (
+            <mesh key={i} position={[dx * 0.8, (i - 1) * 0.5, 0]}>
+              <sphereGeometry args={[0.15, 8, 6]} />
+              <meshBasicMaterial color="#5ba3e8" transparent opacity={0.6} />
+            </mesh>
+          ))}
+        </>
+      )}
     </group>
   );
 };
 
+/** "SAFETY INSPECTION REQUIRED" sign on a building */
 const SafetySign: React.FC<{ tau: number }> = ({ tau }) => {
   if (tau < 44 || tau > 60) return null;
   const appear = cl((tau - 44) / 2);
@@ -336,11 +462,17 @@ const SafetySign: React.FC<{ tau: number }> = ({ tau }) => {
     const c = document.createElement("canvas");
     c.width = 256; c.height = 128;
     const g = c.getContext("2d")!;
-    g.fillStyle = "#fff8dc"; g.fillRect(0, 0, 256, 128);
-    g.strokeStyle = "#8b2222"; g.lineWidth = 4; g.strokeRect(2, 2, 252, 124);
-    g.fillStyle = "#8b2222"; g.font = "bold 20px serif"; g.textAlign = "center";
-    g.fillText("SAFETY INSPECTION", 128, 42); g.fillText("REQUIRED", 128, 72);
-    g.font = "16px serif"; g.fillStyle = "#333";
+    g.fillStyle = "#fff8dc";
+    g.fillRect(0, 0, 256, 128);
+    g.strokeStyle = "#8b2222"; g.lineWidth = 4;
+    g.strokeRect(2, 2, 252, 124);
+    g.fillStyle = "#8b2222";
+    g.font = "bold 20px serif";
+    g.textAlign = "center";
+    g.fillText("SAFETY INSPECTION", 128, 42);
+    g.fillText("REQUIRED", 128, 72);
+    g.font = "16px serif";
+    g.fillStyle = "#333";
     g.fillText("— Massachusetts 1920 —", 128, 105);
     return c;
   }, []);
@@ -353,6 +485,7 @@ const SafetySign: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+// ---- Camera rig (must be inside ThreeCanvas / R3F context) ----------------
 const CameraRig: React.FC<{ tau: number }> = ({ tau }) => {
   const { camera } = useThree();
   const cam = camForShot(tau);
@@ -365,47 +498,66 @@ const CameraRig: React.FC<{ tau: number }> = ({ tau }) => {
   return null;
 };
 
+// ---- Main 3D Scene ----------------
 const MolassesScene: React.FC = () => {
   const frame = useCurrentFrame();
   const tau = frame / FPS;
-  const isGolden = tau > 31.5 && tau < 54;
+  const ambientIntensity = tau > 31.5 && tau < 54 ? 0.6 : 0.4;
+  const sunX = tau > 31.5 && tau < 54 ? 2 : -1;
+  const sunColor = tau > 31.5 && tau < 54 ? "#ffcc88" : "#fff5e0";
+
   return (
     <>
       <CameraRig tau={tau} />
-      <ambientLight intensity={isGolden ? 0.6 : 0.4} />
-      <directionalLight position={[isGolden ? 2 : -1, 10, -5]} intensity={1.2} color={isGolden ? "#ffcc88" : "#fff5e0"} castShadow />
+      <ambientLight intensity={ambientIntensity} />
+      <directionalLight
+        position={[sunX, 10, -5]}
+        intensity={1.2}
+        color={sunColor}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+      />
       <Sky tau={tau} />
       <Street />
+      {/* Buildings — left side of Commercial Street */}
       <Building x={-18} z={-8} w={8} d={6} h={12} color="#8b6b52" />
       <Building x={-10} z={-5} w={6} d={5} h={16} color="#7a5f48" />
       <Building x={-4}  z={-6} w={5} d={5} h={10} color="#9a7a62" />
       <Building x={4}   z={-5} w={6} d={5} h={8}  color="#8b6b52" />
       <Building x={12}  z={-6} w={7} d={6} h={14} color="#7a5844" />
       <Building x={20}  z={-4} w={6} d={4} h={11} color="#8e6e54" />
+      {/* Buildings — right side, behind tank */}
       <Building x={-16} z={16} w={8} d={5} h={9}  color="#7a6050" />
       <Building x={-8}  z={18} w={6} d={5} h={12} color="#8b7060" />
+      {/* Large warehouse near tank */}
       <Building x={-20} z={5}  w={10} d={8} h={7} color="#6b5844" />
       <MolassesTank tau={tau} />
       <ElevatedRailway tau={tau} />
+      {/* Lamp posts */}
       <LampPost x={-6} z={-10} />
       <LampPost x={-6} z={-3} />
+      <LampPost x={-6} z={4} />
       <LampPost x={6}  z={-10} />
+      <LampPost x={6}  z={-3} />
+      {/* Cast — workers and citizens */}
       {tau < 25 && <>
-        <Figure x={-3} z={-5} tau={tau} outfit="worker" fleeing={tau > BURST_TAU} speed={1.2} />
-        <Figure x={2}  z={-3} tau={tau} outfit="woman"  fleeing={tau > BURST_TAU} speed={0.9} />
-        <Figure x={-7} z={2}  tau={tau} outfit="worker" fleeing={tau > BURST_TAU} speed={1.0} />
-        <Figure x={5}  z={1}  tau={tau} outfit="worker" fleeing={tau > BURST_TAU} speed={1.3} />
-        <Figure x={-2} z={8}  tau={tau} outfit="horse"  fleeing={tau > BURST_TAU} speed={2.0} />
-        <Figure x={3}  z={6}  tau={tau} outfit="horse"  fleeing={tau > BURST_TAU} speed={2.5} />
+        <Figure x={-3}  z={-5} tau={tau} outfit="worker"  fleeing={tau > BURST_TAU} speed={1.2} />
+        <Figure x={2}   z={-3} tau={tau} outfit="woman"   fleeing={tau > BURST_TAU} speed={0.9} />
+        <Figure x={-7}  z={2}  tau={tau} outfit="worker"  fleeing={tau > BURST_TAU} speed={1.0} />
+        <Figure x={5}   z={1}  tau={tau} outfit="worker"  fleeing={tau > BURST_TAU} speed={1.3} />
+        <Figure x={-2}  z={8}  tau={tau} outfit="horse"   fleeing={tau > BURST_TAU} speed={2.0} />
+        <Figure x={3}   z={6}  tau={tau} outfit="horse"   fleeing={tau > BURST_TAU} speed={2.5} />
       </>}
       <MolassesWave tau={tau} />
       <MolassesPool tau={tau} />
+      <MolassesDrips tau={tau} />
       <WaterBalloon tau={tau} />
       <SafetySign tau={tau} />
     </>
   );
 };
 
+// ---- Titles (subtitles) overlay ----------------
 const CAPTIONS = [
   { a: 0,    b: 4.3,  text: "A wave of molasses once rolled through Boston\nat thirty-five miles an hour." },
   { a: 4.3,  b: 10.3, text: "It's January 1919, and a massive steel tank\non Commercial Street holds two and a half\nmillion gallons of syrup." },
@@ -424,11 +576,26 @@ const CAPTIONS = [
 const Subtitles: React.FC<{ tau: number }> = ({ tau }) => {
   const cap = CAPTIONS.find(c => tau >= c.a && tau < c.b);
   if (!cap) return null;
-  const alpha = Math.min(cl((tau - cap.a) / 0.3), cl((cap.b - tau) / 0.3));
+  const fadeIn = cl((tau - cap.a) / 0.3);
+  const fadeOut = cl((cap.b - tau) / 0.3);
+  const alpha = Math.min(fadeIn, fadeOut);
+  const lines = cap.text.split("\n");
   return (
-    <div style={{ position: "absolute", bottom: 160, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", opacity: alpha, padding: "0 40px" }}>
-      {cap.text.split("\n").map((line, i) => (
-        <div key={i} style={{ fontFamily: "'Georgia', serif", fontSize: 42, color: "#fff", textShadow: "0 2px 8px rgba(0,0,0,0.9)", textAlign: "center", lineHeight: 1.35, fontWeight: "bold" }}>
+    <div style={{
+      position: "absolute", bottom: 160, left: 0, right: 0,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      opacity: alpha, padding: "0 40px",
+    }}>
+      {lines.map((line, i) => (
+        <div key={i} style={{
+          fontFamily: "'Georgia', serif",
+          fontSize: 42,
+          color: "#fff",
+          textShadow: "0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.6)",
+          textAlign: "center",
+          lineHeight: 1.35,
+          fontWeight: "bold",
+        }}>
           {line}
         </div>
       ))}
@@ -436,36 +603,81 @@ const Subtitles: React.FC<{ tau: number }> = ({ tau }) => {
   );
 };
 
+/** Title card at the very end */
 const TitleCard: React.FC<{ tau: number }> = ({ tau }) => {
   if (tau < 60.0) return null;
   const a = cl((tau - 60.0) / 1.5);
   return (
-    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 300, opacity: a, background: a > 0.95 ? "rgba(0,0,0,0.3)" : "transparent" }}>
-      <div style={{ fontFamily: "'Georgia', serif", fontSize: 56, color: "#fff", textShadow: "0 2px 12px #000", fontWeight: "bold", textAlign: "center", padding: "0 40px" }}>The Great<br />Boston Molasses Flood</div>
-      <div style={{ fontFamily: "'Georgia', serif", fontSize: 36, color: "#ffd700", textShadow: "0 2px 8px #000", marginTop: 24, textAlign: "center" }}>15 January 1919</div>
-      <div style={{ fontFamily: "sans-serif", fontSize: 28, color: "#ccc", textShadow: "0 2px 8px #000", marginTop: 48, textAlign: "center", padding: "0 60px", lineHeight: 1.5 }}>21 killed · 150 injured<br />First construction safety laws in America</div>
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start",
+      paddingTop: 300, opacity: a,
+      background: a > 0.95 ? "rgba(0,0,0,0.3)" : "transparent",
+    }}>
+      <div style={{ fontFamily: "'Georgia', serif", fontSize: 56, color: "#fff", textShadow: "0 2px 12px #000", fontWeight: "bold", textAlign: "center", padding: "0 40px" }}>
+        The Great<br />Boston Molasses Flood
+      </div>
+      <div style={{ fontFamily: "'Georgia', serif", fontSize: 36, color: "#ffd700", textShadow: "0 2px 8px #000", marginTop: 24, textAlign: "center" }}>
+        15 January 1919
+      </div>
+      <div style={{ fontFamily: "sans-serif", fontSize: 28, color: "#ccc", textShadow: "0 2px 8px #000", marginTop: 48, textAlign: "center", padding: "0 60px", lineHeight: 1.5 }}>
+        21 killed · 150 injured<br />
+        First construction safety laws in America
+      </div>
     </div>
   );
 };
 
+/** Cinematic grain overlay */
 const FilmGrain: React.FC<{ frame: number }> = ({ frame }) => {
   const seed = frame * 1327 + 4919;
-  return <div style={{ position: "absolute", inset: 0, backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='${seed % 99}' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.07'/></svg>`)}")`, backgroundSize: "200px 200px", mixBlendMode: "overlay" as const, pointerEvents: "none" }} />;
+  const style: React.CSSProperties = {
+    position: "absolute", inset: 0,
+    backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='${seed % 99}' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.07'/></svg>`)}")`,
+    backgroundSize: "200px 200px",
+    mixBlendMode: "overlay" as const,
+    pointerEvents: "none",
+  };
+  return <div style={style} />;
 };
 
+// ---- Main Composition ----------------
 export const MolassesShort: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const tau = frame / fps;
+
+  // Vignette
+  const vigOpacity = 0.45;
+
   return (
     <div style={{ width: 1080, height: 1920, position: "relative", overflow: "hidden", background: "#000" }}>
-      <ThreeCanvas width={1080} height={1920} style={{ position: "absolute", inset: 0 }}>
+      {/* 3D Scene */}
+      <ThreeCanvas
+        width={1080}
+        height={1920}
+        style={{ position: "absolute", inset: 0 }}
+      >
         <MolassesScene />
       </ThreeCanvas>
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%)", pointerEvents: "none" }} />
+
+      {/* Vignette */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%)",
+        pointerEvents: "none",
+      }} />
+
+      {/* Film grain */}
       <FilmGrain frame={frame} />
+
+      {/* Subtitles */}
       <Subtitles tau={tau} />
+
+      {/* End title card */}
       <TitleCard tau={tau} />
+
+      {/* Voice narration */}
       <Audio src={staticFile("voice.wav")} />
     </div>
   );
