@@ -1,0 +1,239 @@
+// Our cast as lit flat sprites in the 3D world. Each frame every character asks for a drawing (a key + a draw call);
+// the pool keeps one canvas per distinct drawing, so soldiers marching in step share canvases (7 head shapes x 4
+// outfits). Characters are yaw-only billboards shaded by cardShade() (scene tint, bright floor, side gradient toward
+// the sun, painted crescent in the drawing); standing ones get a soft multiply contact blob. Effects are unlit cards.
+// Cards, effects and blobs live on the NOINK layer so the world ink pass never outlines their quads.
+import * as THREE from "three";
+import { Pen, bodyFront, bodySide, fxContact, Outfit, FrontOpts, SideOpts } from "./toon";
+import { FPS, clamp01 } from "./story";
+import { NOINK } from "./ink";
+import { cardShade, blobMaterial, CARD_K } from "./cardshade";
+
+// ---------------- canvas pool ----------------
+type Entry = { cv: HTMLCanvasElement; tex: THREE.CanvasTexture; w: number; h: number };
+export type Req = { key: string; w: number; h: number; k: number; draw: (p: Pen) => void; tex?: THREE.CanvasTexture };
+const makeEntry = (w: number, h: number): Entry => {
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  return { cv, tex, w, h };
+};
+export class Pool {
+  private live = new Map<string, Entry>();
+  private free: Entry[] = [];
+  private reqs: Req[] = [];
+  req(key: string, w: number, h: number, k: number, draw: (p: Pen) => void) {
+    const r: Req = { key: `${w}x${h}|${key}`, w, h, k, draw };
+    this.reqs.push(r);
+    return r;
+  }
+  flush() {
+    const want = new Map<string, Req[]>();
+    for (const r of this.reqs) { const l = want.get(r.key); if (l) l.push(r); else want.set(r.key, [r]); }
+    for (const [key, e] of this.live) if (!want.has(key)) { this.live.delete(key); this.free.push(e); }
+    for (const [key, rs] of want) {
+      let e = this.live.get(key);
+      if (!e) {
+        const r = rs[0], i = this.free.findIndex((x) => x.w === r.w && x.h === r.h);
+        e = i >= 0 ? this.free.splice(i, 1)[0] : makeEntry(r.w, r.h);
+        const g = e.cv.getContext("2d")!;
+        g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, e.w, e.h); g.setTransform(r.k, 0, 0, r.k, 0, 0);
+        r.draw(new Pen(g));
+        e.tex.needsUpdate = true;
+        this.live.set(key, e);
+      }
+      for (const r of rs) r.tex = e.tex;
+    }
+    this.reqs = [];
+  }
+}
+
+// ---------------- sprite meshes ----------------
+const blank = (() => { const c = document.createElement("canvas"); c.width = c.height = 2; return new THREE.CanvasTexture(c); })();
+export const SU = 0.00216; // metres per design unit: 1000 units = 2.16 m
+const BODY = (() => { const g = new THREE.PlaneGeometry(600 * SU, 1000 * SU); g.translate(0, (975 - 500) * SU, 0); return g; })();
+const CARD = new THREE.PlaneGeometry(1, 1);
+/** world roots that hold actors (to find the scene's sun when world.ts does not pass it) */
+const ROOTS = new Set<THREE.Object3D>();
+
+/** lit flat character: cardShade() material, receives shadows (dims to the bright floor only), casts its silhouette
+ *  when world.ts says so (golden). Drawn after the contact blobs (renderOrder 1). */
+export class Actor {
+  mesh: THREE.Mesh; mat: THREE.MeshLambertMaterial; dmat: THREE.MeshDepthMaterial; r: Req | null = null;
+  constructor(parent: THREE.Object3D, geo: THREE.BufferGeometry = BODY) {
+    this.mat = cardShade(new THREE.MeshLambertMaterial({ map: blank, alphaTest: 0.5, side: THREE.DoubleSide }));
+    this.mat.alphaToCoverage = false; // A2C + MSAA left 1 px sky-depth seams on blurred far cards (POST)
+    this.dmat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: blank, alphaTest: 0.5, side: THREE.DoubleSide });
+    this.mesh = new THREE.Mesh(geo, this.mat);
+    this.mesh.customDepthMaterial = this.dmat;
+    // rim width is in output pixels: tell the card shader the render height (1920 = 1080 x 1920 frame)
+    this.mesh.onBeforeRender = (r) => { const rt = r.getRenderTarget(); CARD_K.uPx.value = (rt ? rt.height : r.domElement.height) / 1920; };
+    this.mesh.castShadow = false; this.mesh.receiveShadow = true; this.mesh.visible = false;
+    this.mesh.rotation.order = "YXZ"; this.mesh.renderOrder = 1; this.mesh.layers.set(NOINK);
+    parent.add(this.mesh);
+    ROOTS.add(parent);
+  }
+  bind() { const t = this.r?.tex; if (t) { this.mat.map = t; this.dmat.map = t; } }
+}
+/** unlit effect card: hard cut-out (ink drawings), soft see-through (dust, mist) or a multiply ground blob */
+export class Fx {
+  mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; soft: THREE.MeshBasicMaterial; blob: THREE.MeshBasicMaterial; r: Req | null = null;
+  constructor(parent: THREE.Object3D) {
+    this.mat = new THREE.MeshBasicMaterial({ map: blank, alphaTest: 0.5, side: THREE.DoubleSide });
+    this.mat.alphaToCoverage = false; // A2C + MSAA left 1 px sky-depth seams on blurred far cards (POST)
+    this.soft = new THREE.MeshBasicMaterial({ map: blank, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    this.blob = blobMaterial(blank);
+    this.mesh = new THREE.Mesh(CARD, this.mat);
+    this.mesh.visible = false; this.mesh.layers.set(NOINK);
+    parent.add(this.mesh);
+  }
+  use(soft: boolean) { this.mesh.material = soft ? this.soft : this.mat; }
+  bind() {
+    const t = this.r?.tex;
+    if (!t) return;
+    if (this.r!.key.includes("|blob|")) {
+      // no mipmaps: at grazing views the mip chain averages the blob with its white surround and it fades out
+      if (t.generateMipmaps) { t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; t.needsUpdate = true; }
+      this.blob.map = t; this.mesh.material = this.blob; this.mesh.renderOrder = 0.5;
+    }
+    else { this.mat.map = t; this.soft.map = t; this.mesh.renderOrder = 0; }
+  }
+}
+
+// ---------------- placements ----------------
+export type Place = {
+  key: string; draw: (p: Pen) => void; x: number; y: number; z: number;
+  scale?: number; mirror?: boolean; yaw?: number; geo?: "body" | "swing"; roll?: number; size?: [number, number, number];
+};
+export type FxPlace = { key: string; cw: number; ch: number; draw: (p: Pen) => void; x: number; y: number; z: number; w: number; h: number; flat?: boolean; rot?: number; soft?: boolean };
+/** sun = world direction TOWARD the sun (optional: when absent the scene's shadow-casting light is used) */
+export type CamInfo = { pos: THREE.Vector3; right: THREE.Vector3; sun?: THREE.Vector3 };
+
+
+const hh = (i: number, s = 0) => { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); };
+const q = (v: number, n = 120) => Math.round(v * n) / n;
+/** drawing resolution by distance: [canvas w, h, scale from the 600 x 1000 design]. Sized so a card is never
+ *  magnified at 1080 x 1920: >= 1.4 texels per output pixel at every framing of this film (never blurry). */
+const tier = (d: number): [number, number, number] => (d < 4.2 ? [1800, 3000, 3.0] : d < 9 ? [1320, 2200, 2.2] : [720, 1200, 1.2]);
+
+// ---------------- light ----------------
+const SUN = new THREE.Vector3(0.5, 0.75, 0.4).normalize();
+const tmp = new THREE.Vector3();
+/** canvas angle the sun comes FROM on an upright card facing the camera, in 45-degree steps (small texture cache) */
+const light2D = (cam: CamInfo, mirror: boolean) => {
+  const sx = SUN.dot(cam.right) * (mirror ? -1 : 1), sy = -SUN.y;
+  return Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) * (Math.PI / 4);
+};
+
+// ---------------- life: blinks ----------------
+const LEAD = 2 / FPS;
+const LID = [0.5, 1, 1, 0.5];
+/** eyelid 0 open .. 1 shut: a 4-frame blink every 0.5-2.3 s, plus one across every expression swap */
+const lidAt = (t: number, i: number, swaps: number[] = []) => {
+  const f = Math.round(t * FPS);
+  for (const ts of swaps) { const k = f - Math.round((ts - LEAD) * FPS) + 1; if (k >= 0 && k < 4) return LID[k]; }
+  let s = Math.round(-60 * hh(i, 9));
+  for (let n = 0; s <= f && n < 400; n++) {
+    const k = f - s;
+    if (k >= 0 && k < 4) return LID[k];
+    s += Math.round(15 + 54 * hh(i * 31 + n, 13));
+  }
+  return 0;
+};
+const fkey = (o: object) => JSON.stringify(o, (_k, v) => (typeof v === "number" ? q(v) : v));
+
+// ---------------- the cast: ONE character system for the whole series (toon.ts), one outfit colour each ----------------
+const ADULT = 1.7 / (777 * SU);
+const MECH: Outfit = { jacket: "#f08a2c", pants: "#4a5a3a", boots: "#3a2a20", hat: "cap", cap: "#5d7a3a", buttons: "#ffe9b8" };
+const OFFICER: Outfit = { jacket: "#a8894e", pants: "#6b5a3a", boots: "#3a2a20", hat: "cap", cap: "#4d5a3a", buttons: "#f1e3b5", moustache: "#5a4a3c", skin: "#f5c9a0", build: "stout", sash: "#7a5230" };
+const WALD: Outfit = { jacket: "#3a6fc0", pants: "#3b3f52", boots: "#2e2a36", hat: "hair", hair: "#3a2a22", buttons: "#f1e3b5", skin: "#f5c9a0" };
+const COLL_A: Outfit = { jacket: "#3f9458", pants: "#4a3f38", boots: "#3a2a20", hat: "hair", hair: "#b98a55", buttons: "#e8f0d8", skin: "#ecd0b6" };
+const COLL_B: Outfit = { jacket: "#8b5fd0", pants: "#3b3f52", boots: "#4a3426", hat: "hair", hair: "#8a4a2a", buttons: "#f4e9ff" };
+const READER: Outfit = { jacket: "#21a08f", pants: "#3b4a6a", boots: "#f4f1ea", hat: "hair", hair: "#2e2a36", buttons: "#f4f1ea", skin: "#c99067" };
+
+export type Stage = { places: Place[]; fx: FxPlace[] };
+type Act = { expr: Expr; look?: number; facing?: -1 | 0 | 1; wave?: number; prop?: FrontOpts["prop"]; headTilt?: number; tilt?: number; hop?: number };
+import type { Expr } from "./toon";
+import { S, CUE, OX, SHOTS, sm } from "./story";
+
+const CONTACT = "#8c8fb4";
+/** one character, front view, feet at (x, y, z) set-local; `swaps` = times where the expression changes (blink hides it) */
+const put = (out: Stage, cam: CamInfo, ox: number, i: number, o: Outfit, okey: string, x: number, y: number, z: number, t: number, a: Act, swaps: number[], scale = ADULT, mirror = false) => {
+  const d = cam.pos.distanceTo(tmp.set(x + ox, y + 1.2, z)) / scale;
+  const [w, h, k] = tier(d);
+  const light = light2D(cam, mirror), seed = ((i * 5 + 3) % 7) + 1;
+  const fo: FrontOpts = { mode: "stand", expr: a.expr, look: a.look ?? 0, facing: a.facing ?? 0, wave: a.wave === undefined ? undefined : q(a.wave, 30), prop: a.prop ?? null,
+    headTilt: a.headTilt ?? 0, tilt: a.tilt ?? 0, blink: a.expr === "laugh" || a.expr === "grin" ? 0 : lidAt(t, i, swaps), light, seed };
+  out.places.push({ key: `F|${okey}|${fkey(fo)}`, x: x + ox, y: y + (a.hop ?? 0), z, scale, mirror, size: [w, h, k], draw: (p) => bodyFront(p, o, fo) });
+  out.fx.push({ key: `blob|contact|${CONTACT}`, cw: 128, ch: 128, draw: (p) => fxContact(p, CONTACT), x: x + ox, y: y + 0.012, z: z + 0.02, w: 0.62 * scale, h: 0.42 * scale, flat: true });
+};
+/** switch helper: value of the last cue whose time has passed (cues land 2 frames before their word / action) */
+const at = <T,>(t: number, first: T, ...cues: [number, T][]) => { let v = first; for (const [tc, x] of cues) if (t >= tc - LEAD) v = x; return v; };
+const cheer = (t: number, t0: number, dur = 1.6) => (t >= t0 - LEAD && t < t0 + dur ? Math.sin((t - t0) * 11) : undefined);
+const hopAt = (t: number, t0: number) => { const u = (t - t0) / 0.42; return u > 0 && u < 1 ? 0.07 * 4 * u * (1 - u) : 0; };
+/** arm raised to point at something (held), from t0 to t1 */
+const point = (t: number, t0: number, t1: number, k = 0.5) => (t >= t0 - LEAD && t < t1 ? k + 0.12 * Math.sin((t - t0) * 2.2) : undefined);
+
+/** everyone with a face in shot `id` at time t */
+export const stage = (id: number, t: number, cam: CamInfo, sun: THREE.Vector3): Stage => {
+  const out: Stage = { places: [], fx: [] }, ox = OX[SHOTS[id - 1].set];
+  SUN.copy(sun);
+  switch (id) {
+    case 1: // the mechanic discovers the holes
+      put(out, cam, ox, 1, MECH, "mech", -6.75, 0, -11.6, t, { expr: at<Expr>(t, "shock", [1.6, "nervous"], [2.77, "neutral"], [3.6, "nervous"]), look: 1, facing: 1, wave: point(t, 0.3, 2.6, 0.6), hop: hopAt(t, 0.12), headTilt: t > 2.77 ? -5 : 0 }, [1.6, 2.77, 3.6]);
+      break;
+    case 2: // wide: the crew waits by the parked bomber while another one comes home
+      put(out, cam, ox, 1, MECH, "mech", -6.75, 0, -11.6, t, { expr: "smile", look: -1, wave: cheer(t, 6.3, 1.6) }, []);
+      put(out, cam, ox, 2, OFFICER, "off", -8.4, 0, -12.5, t, { expr: "neutral", look: -1 }, []);
+      break;
+    case 3: // counting the holes: the mechanic points at each zone on its word, the officer nods
+      put(out, cam, ox, 2, OFFICER, "off", -7.95, 0, -12.5, t, { expr: at<Expr>(t, "stern", [10.81, "neutral"], [12.1, "smile"], [14.02, "smile_closed"]), facing: 1, look: 1 }, [10.81, 12.1, 14.02]);
+      put(out, cam, ox, 1, MECH, "mech", -5.75, 0, -11.9, t, { expr: at<Expr>(t, "neutral", [10.2, "whistle"], [12.6, "smile"], [13.2, "nervous"]), look: t > 13.2 ? 1 : -1, facing: t > 13.2 ? 1 : 0,
+        wave: cheer(t, CUE.tally[0], 0.45) ?? cheer(t, CUE.tally[1], 0.45) ?? cheer(t, CUE.tally[2], 0.45), headTilt: t > 13.2 ? 6 : 0 }, [10.2, 12.6, 13.2]);
+      break;
+    case 4: // "obvious": the officer orders plates on the holed zones; the mechanic is not so sure
+      put(out, cam, ox, 2, OFFICER, "off", -7.6, 0, -12.5, t, { expr: at<Expr>(t, "smile", [16.4, "grin"], [18.6, "smile_closed"]), facing: 1, look: 1, wave: point(t, 17.07, 19.0, 0.55), hop: hopAt(t, CUE.plates[0]) }, [16.4, 18.6]);
+      put(out, cam, ox, 1, MECH, "mech", -5.55, 0, -11.9, t, { expr: at<Expr>(t, "neutral", [16.4, "nervous"], [CUE.plates[0], "shock"], [18.3, "nervous"]), facing: -1, look: -1, headTilt: t > 18.3 ? -6 : 0 }, [16.4, CUE.plates[0], 18.3]);
+      break;
+    case 5: // the Statistical Research Group at work
+      put(out, cam, ox, 4, COLL_A, "ca", -1.2, 0, -1.7, t, { expr: at<Expr>(t, "neutral", [21.9, "smile"]), facing: 1, look: 1 }, [21.9]);
+      put(out, cam, ox, 5, COLL_B, "cb", 0.8, 0, -1.5, t, { expr: at<Expr>(t, "smile", [23.3, "whistle"]), facing: -1, look: -1, headTilt: t > 23.3 ? -5 : 0 }, [23.3]);
+      put(out, cam, ox, 3, WALD, "wald", -0.1, 0, 0.0, t, { expr: at<Expr>(t, "neutral", [22.7, "smile_closed"]), look: -1, headTilt: 4 }, [22.7]);
+      break;
+    case 6: // Abraham Wald
+      put(out, cam, ox, 4, COLL_A, "ca", -1.2, 0, -1.7, t, { expr: "smile", facing: 1, look: 1 }, []);
+      put(out, cam, ox, 5, COLL_B, "cb", 0.8, 0, -1.5, t, { expr: "smile", facing: -1, look: -1 }, []);
+      put(out, cam, ox, 3, WALD, "wald", -0.1, 0, 0.0, t, { expr: at<Expr>(t, "smile_closed", [26.02, "smile"], [27.45, "grin"]), wave: cheer(t, 27.06, 1.2), hop: hopAt(t, 27.06) }, [26.02]);
+      break;
+    case 7: // 1943: he writes his memoranda, page after page
+      put(out, cam, ox, 4, COLL_A, "ca", -1.2, 0, -1.7, t, { expr: "neutral", facing: 1, look: 1 }, []);
+      put(out, cam, ox, 3, WALD, "wald", -0.2, 0, 0.0, t, { expr: at<Expr>(t, "neutral", [30.29, "stern"], [32.6, "smile"]), facing: -1, look: -1, headTilt: t > 30.29 && t < 32.6 ? -5 : 0 }, [30.29, 32.6]);
+      break;
+    case 8: // the idea: these sheets only show the planes that came back
+      put(out, cam, ox, 5, COLL_B, "cb", 0.8, 0, -1.5, t, { expr: at<Expr>(t, "neutral", [37.57, "whistle"]), look: 1 }, [37.57]);
+      put(out, cam, ox, 4, COLL_A, "ca", -0.25, 0, -0.15, t, { expr: at<Expr>(t, "neutral", [35.94, "whistle"], [38.8, "nervous"], [41.71, "smile"]), facing: 1, look: 1, headTilt: t > 38.8 && t < 41.71 ? -6 : 0 }, [35.94, 38.8, 41.71]);
+      put(out, cam, ox, 3, WALD, "wald", 1.3, 0, 0.0, t, { expr: at<Expr>(t, "smile", [34.49, "neutral"], [36.95, "stern"], [40.98, "smile"]), facing: -1, look: -1, wave: point(t, 35.94, S.s9, 0.6) }, [34.49, 36.95, 40.98]);
+      break;
+    case 9: // the planes hit in the engines are not there: armour where there are NO holes
+      put(out, cam, ox, 5, COLL_B, "cb", 0.8, 0, -1.5, t, { expr: at<Expr>(t, "whistle", [CUE.ghosts, "shock"], [CUE.armour[0], "smile"]), look: 1 }, [CUE.ghosts, CUE.armour[0]]);
+      put(out, cam, ox, 4, COLL_A, "ca", -0.25, 0, -0.15, t, { expr: at<Expr>(t, "nervous", [CUE.ghosts, "shock"], [47.02, "nervous"], [CUE.armour[0], "grin"]), facing: 1, look: 1, hop: hopAt(t, CUE.armour[0]), wave: cheer(t, CUE.armour[4], 1.0) }, [CUE.ghosts, 47.02]);
+      put(out, cam, ox, 3, WALD, "wald", 1.3, 0, 0.0, t, { expr: at<Expr>(t, "stern", [47.02, "neutral"], [CUE.armour[0], "grin"]), facing: -1, look: -1, wave: point(t, S.s9, 52, 0.6) }, [47.02]);
+      break;
+    case 10: // honest footnote: the famous picture is a modern illustration
+      put(out, cam, ox, 5, COLL_B, "cb", 0.8, 0, -1.5, t, { expr: "smile", look: 1 }, []);
+      put(out, cam, ox, 4, COLL_A, "ca", -0.25, 0, -0.15, t, { expr: at<Expr>(t, "neutral", [CUE.stamp, "whistle"], [54.63, "smile"]), facing: 1, look: 1 }, [CUE.stamp, 54.63]);
+      put(out, cam, ox, 3, WALD, "wald", 1.25, 0, 0.0, t, { expr: at<Expr>(t, "smile_closed", [CUE.stamp, "smile"], [54.63, "nervous"], [55.4, "smile"]), headTilt: t > 54.63 ? 6 : 0, look: t > 54.63 ? -1 : 0 }, [CUE.stamp, 54.63, 55.4]);
+      break;
+    case 11: // today: we study the winners and forget everybody else
+      put(out, cam, ox, 6, READER, "read", 0.7, 0, 0.0, t, { expr: at<Expr>(t, "smile", [CUE.winners, "grin"], [CUE.others, "shock"], [62.0, "nervous"]), facing: -1, look: t > CUE.others ? 0 : -1,
+        wave: cheer(t, CUE.winners, 1.1), headTilt: t > 62.0 ? -6 : 0, hop: hopAt(t, CUE.others) }, [CUE.others, 62.0]);
+      break;
+    case 12: // back on the base: the armour is on the engines now; where are the missing planes?
+      put(out, cam, ox, 1, MECH, "mech", -0.55, 0, 1.5, t, { expr: at<Expr>(t, "smile", [64.67, "whistle"], [CUE.missing, "nervous"], [66.9, "smile"]), look: t > 64.67 ? -1 : 1, headTilt: t > 64.67 ? -6 : 0 }, [64.67, CUE.missing, 66.9]);
+      put(out, cam, ox, 2, OFFICER, "off", 1.45, 0, 1.3, t, { expr: at<Expr>(t, "smile_closed", [63.61, "neutral"], [CUE.missing, "shock"], [66.9, "nervous"]), facing: -1, look: -1 }, [63.61, CUE.missing, 66.9]);
+      break;
+  }
+  return out;
+};
+export { sm };

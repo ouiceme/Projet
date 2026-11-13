@@ -1,0 +1,72 @@
+1
+00:00:00,100 --> 00:00:02,776
+Ces trous ont failli tromper toute une armée.
+
+2
+00:00:02,726 --> 00:00:04,738
+Seconde Guerre mondiale.
+
+3
+00:00:04,738 --> 00:00:08,678
+Les bombardiers américains rentrent de mission, criblés d'impacts.
+
+4
+00:00:08,678 --> 00:00:13,154
+Les militaires relèvent les trous : surtout sur les ailes, le fuselage et la queue.
+
+5
+00:00:13,154 --> 00:00:15,392
+Beaucoup moins sur les moteurs.
+
+6
+00:00:15,392 --> 00:00:19,464
+La conclusion paraît évidente : il faut blinder les zones les plus touchées.
+
+7
+00:00:19,464 --> 00:00:24,940
+À New York, à l'université Columbia, le Groupe de recherche statistique étudie la question.
+
+8
+00:00:24,940 --> 00:00:28,619
+Parmi ses membres, un mathématicien : Abraham Wald.
+
+9
+00:00:28,619 --> 00:00:33,559
+En 1943, il rédige une série de notes sur la vulnérabilité des avions.
+
+10
+00:00:33,559 --> 00:00:38,750
+Son idée, telle qu'on la résume aujourd'hui : ces relevés ne montrent que les avions qui sont revenus.
+
+11
+00:00:38,750 --> 00:00:43,440
+Les trous indiquent donc les endroits où un avion peut être touché, et rentrer quand même.
+
+12
+00:00:43,440 --> 00:00:46,976
+Les avions touchés aux moteurs, eux, ne sont pas là.
+
+13
+00:00:46,976 --> 00:00:48,940
+Ils ne sont jamais revenus.
+
+14
+00:00:48,940 --> 00:00:51,642
+Il faut donc blinder là où il n'y a pas de trous.
+
+15
+00:00:51,642 --> 00:00:56,333
+Le célèbre schéma aux points rouges est une illustration moderne, pas les données de Wald.
+
+16
+00:00:56,333 --> 00:00:59,190
+Mais l'idée a un nom : le biais du survivant.
+
+17
+00:00:59,190 --> 00:01:02,916
+On étudie ceux qui ont réussi, et on oublie tous les autres.
+
+18
+00:01:02,916 --> 00:01:07,464
+Alors, devant un succès, demandez-vous : où sont les avions qui manquent ?
+
