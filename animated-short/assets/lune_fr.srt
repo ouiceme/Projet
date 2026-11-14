@@ -1,0 +1,60 @@
+1
+00:00:00,100 --> 00:00:03,395
+Personne n'a marché sur la Lune depuis plus de cinquante ans.
+
+2
+00:00:03,345 --> 00:00:06,630
+Juillet 1969 : Apollo 11.
+
+3
+00:00:06,630 --> 00:00:09,142
+Deux hommes posent le pied sur la Lune.
+
+4
+00:00:09,142 --> 00:00:12,761
+Décembre 1972 : Apollo 17.
+
+5
+00:00:12,761 --> 00:00:14,547
+Ce sont les derniers.
+
+6
+00:00:14,547 --> 00:00:19,309
+Ensuite, pendant un demi-siècle, plus aucun humain ne quitte l'orbite de la Terre.
+
+7
+00:00:19,309 --> 00:00:24,416
+En 2022, la mission Artemis 1 fait le tour de la Lune, sans équipage.
+
+8
+00:00:24,416 --> 00:00:29,238
+Et le premier avril 2026, Artemis 2 décolle avec quatre astronautes.
+
+9
+00:00:29,238 --> 00:00:35,952
+Ils contournent la Lune, sans s'y poser, et s'éloignent de la Terre plus que personne avant eux : plus de quatre cent mille kilomètres.
+
+10
+00:00:35,952 --> 00:00:39,452
+Une dizaine de jours plus tard, ils sont de retour.
+
+11
+00:00:39,452 --> 00:00:40,952
+La suite ?
+
+12
+00:00:40,952 --> 00:00:45,392
+Artemis 3 doit tester l'amarrage en orbite terrestre, en 2027.
+
+13
+00:00:45,392 --> 00:00:49,869
+Le retour sur le sol lunaire, lui, est visé pour 2028.
+
+14
+00:00:49,869 --> 00:00:51,869
+Si le calendrier tient.
+
+15
+00:00:51,869 --> 00:00:55,500
+Alors levez les yeux : la prochaine page s'écrit en ce moment.
+
