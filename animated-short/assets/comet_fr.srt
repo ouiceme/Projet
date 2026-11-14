@@ -1,0 +1,123 @@
+1
+00:00:00,100 --> 00:00:02,600
+Pourquoi les hublots des avions sont-ils ronds ?
+
+2
+00:00:02,640 --> 00:00:05,080
+En 1952, le Comet de de Havilland
+
+3
+00:00:05,120 --> 00:00:06,310
+devient le premier avion de ligne
+
+4
+00:00:06,350 --> 00:00:08,350
+à réaction en service.
+
+5
+00:00:08,390 --> 00:00:09,470
+Il vole plus haut et plus vite
+
+6
+00:00:09,510 --> 00:00:11,850
+que les avions à hélices de l'époque.
+
+7
+00:00:11,890 --> 00:00:13,970
+Mais en 1954, deux Comet
+
+8
+00:00:14,010 --> 00:00:15,970
+se disloquent en plein vol.
+
+9
+00:00:16,010 --> 00:00:18,000
+Il n'y a aucun survivant.
+
+10
+00:00:18,040 --> 00:00:20,280
+Toute la flotte est clouée au sol.
+
+11
+00:00:20,320 --> 00:00:22,270
+À Farnborough, les enquêteurs plongent
+
+12
+00:00:22,310 --> 00:00:25,000
+un fuselage entier dans un immense bassin d'eau.
+
+13
+00:00:25,040 --> 00:00:26,500
+Ils le gonflent et le dégonflent,
+
+14
+00:00:26,540 --> 00:00:29,320
+encore et encore, comme autant de vols.
+
+15
+00:00:29,360 --> 00:00:30,910
+Et le métal finit par céder :
+
+16
+00:00:30,950 --> 00:00:33,460
+une fissure part du coin d'une ouverture.
+
+17
+00:00:33,500 --> 00:00:35,600
+C'est la fatigue du métal.
+
+18
+00:00:35,640 --> 00:00:38,940
+À chaque vol, la cabine se gonfle comme un ballon.
+
+19
+00:00:38,980 --> 00:00:40,530
+Et dans les coins d'une ouverture,
+
+20
+00:00:40,570 --> 00:00:42,400
+l'effort se concentre.
+
+21
+00:00:42,440 --> 00:00:44,980
+Précision importante : sur l'épave repêchée,
+
+22
+00:00:45,020 --> 00:00:47,330
+la rupture semble partie d'une ouverture du toit,
+
+23
+00:00:47,370 --> 00:00:48,420
+celle des antennes,
+
+24
+00:00:48,460 --> 00:00:50,450
+pas d'un hublot de passager.
+
+25
+00:00:50,490 --> 00:00:52,690
+Et les hublots du Comet, presque carrés,
+
+26
+00:00:52,730 --> 00:00:55,210
+avaient déjà des coins légèrement arrondis.
+
+27
+00:00:55,250 --> 00:00:57,340
+La leçon, elle, est restée :
+
+28
+00:00:57,380 --> 00:00:58,760
+un angle arrondi répartit l'effort
+
+29
+00:00:58,800 --> 00:01:00,590
+au lieu de le concentrer.
+
+30
+00:01:00,630 --> 00:01:02,410
+Voilà pourquoi, aujourd'hui,
+
+31
+00:01:02,450 --> 00:01:04,600
+votre hublot a des angles tout ronds.

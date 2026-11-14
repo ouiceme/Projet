@@ -5,6 +5,7 @@ import { DunningShort } from "./videos/dk/Dunning";
 import { LegoShort } from "./videos/lego/Lego";
 import { Lego4Short, LEGO4_FRAMES } from "./videos/lego4/Lego4";
 import { WaldShort, WALD_FRAMES } from "./videos/wald/Wald";
+import { CometShort, COMET_FRAMES } from "./videos/comet/Comet";
 import { BridgeShort, BRIDGE_FRAMES } from "./videos/bridge/Bridge";
 
 export const Root: React.FC = () => (
@@ -36,5 +37,6 @@ export const Root: React.FC = () => (
     <Composition id="BridgeShort" component={BridgeShort} durationInFrames={BRIDGE_FRAMES} fps={30} width={1080} height={1920} />
     <Composition id="Lego4Short" component={Lego4Short} durationInFrames={LEGO4_FRAMES} fps={30} width={1080} height={1920} />
     <Composition id="WaldShort" component={WaldShort} durationInFrames={WALD_FRAMES} fps={30} width={1080} height={1920} />
+    <Composition id="CometShort" component={CometShort} durationInFrames={COMET_FRAMES} fps={30} width={1080} height={1920} />
   </>
 );
